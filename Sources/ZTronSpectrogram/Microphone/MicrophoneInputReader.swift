@@ -6,6 +6,9 @@ import Combine
 
 /// A singleton class that handles low-level interaction with the device's microphone.
 /// It provides access to the recorded samples through Combine framework, providing a certain number of samples at a time.
+///
+/// Operative tests on a microphone with Nyquist frequency of 22100 Hz usually produce 1024 samples at a time but the number of samples may
+/// have very small variations (usually by about four samples) but such occurrence is uncommon. Further tests may be required
 internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate, @unchecked Sendable {
     @MainActor private static var sharedInstance: MicrophoneInputReader?
     private let captureSession = AVCaptureSession()
@@ -15,9 +18,7 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
         return self.captureSession.isRunning
     }
     
-    private static let TARGET_OUTPUT_SAMPLES_PER_BATCH: Int = 1024
-    
-    private var convertedTimeSamples = [Float].init(repeating: 0, count: MicrophoneInputReader.TARGET_OUTPUT_SAMPLES_PER_BATCH)
+    private var convertedTimeSamples = [Float].init()
     
     private var nyquistFrequency: Float? = nil
     

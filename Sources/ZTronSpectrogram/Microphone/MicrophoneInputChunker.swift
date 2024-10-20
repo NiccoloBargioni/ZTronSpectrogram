@@ -30,10 +30,10 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     private var subscriptions: Set<AnyCancellable> = Set<AnyCancellable>()
         
     private let _audioRecordingPublisher: PassthroughSubject<[Float], Never>
-    private let audioRecordingPublisher: AnyPublisher<[Float], Never>
+    internal let audioRecordingPublisher: AnyPublisher<[Float], Never>
         
     private let _audioChunkPublisher: PassthroughSubject<[Float], SpectrogramError>
-    private let audioChunkPublisher: AnyPublisher<[Float], SpectrogramError>
+    internal let audioChunkPublisher: AnyPublisher<[Float], SpectrogramError>
     
     private let logger = os.Logger(subsystem: "Spectrogram", category: "MicrophoneInputChunker")
     
@@ -43,7 +43,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     
 
     @MainActor
-    private init(
+    internal init(
         chunkSize: Int,
         hopCount: Int,
         clampToMinuteIfMemoryWarningReceived: Int = 1
@@ -146,7 +146,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     /// - Parameter clearPreviousRecording: if set to `true`, the previously recorded samples are discarded, otherwise new samples are appended
     /// to the previous recording, if `shouldRecord == true`.
     @MainActor
-    private final func startRunning(shouldRecord: Bool, clearPreviousRecording: Bool = false) {
+    internal final func startRunning(shouldRecord: Bool, clearPreviousRecording: Bool = false) {
         guard !self.microphoneReader.isRunning else { return  }
                 
         if clearPreviousRecording {
@@ -167,7 +167,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     ///
     /// After invoking this method, the client can expect to receive an array containing all the recorded samples,
     /// if `shouldRecord` was set to `true` at the time of invokation of `startRunning(_:,_:)`.
-    private final func stopRunning() {
+    internal final func stopRunning() {
         Task {
             await MainActor.run {
                 self.microphoneReader.stopRunning()
