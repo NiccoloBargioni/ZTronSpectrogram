@@ -114,7 +114,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     }
     
     /// Receives the inputs from the microphone and converts it in chunks of the desired size, then publishes it.
-    final func handleMicrophoneInput(values: [Float]) {
+    @MainActor final func handleMicrophoneInput(values: [Float]) {
         audioRecordingLock.wait()
         if self.isRecordingMicInput {
             self.audioRecording.append(contentsOf: values)
@@ -168,10 +168,8 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     /// After invoking this method, the client can expect to receive an array containing all the recorded samples,
     /// if `shouldRecord` was set to `true` at the time of invokation of `startRunning(_:,_:)`.
     internal final func stopRunning() {
-        Task {
-            await MainActor.run {
-                self.microphoneReader.stopRunning()
-            }
+        Task { @MainActor in
+            self.microphoneReader.stopRunning()
         }
             
         if self.isRecordingMicInput {
