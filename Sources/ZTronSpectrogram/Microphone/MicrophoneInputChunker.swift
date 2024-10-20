@@ -40,6 +40,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     private let rawAudioDataLock = DispatchSemaphore(value: 1)
     private let audioRecordingLock = DispatchSemaphore(value: 1)
     private let loggerLock = DispatchSemaphore(value: 1)
+    private let microphoneReaderLock = DispatchSemaphore(value: 1)
     
 
     @MainActor
@@ -157,8 +158,13 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     /// to the previous recording, if `shouldRecord == true`.
     @MainActor
     internal final func startRunning(shouldRecord: Bool, clearPreviousRecording: Bool = false) {
-        guard !self.microphoneReader.isRunning else { return  }
-                
+        self.microphoneReaderLock.wait()
+        guard !self.microphoneReader.isRunning else {
+            self.microphoneReaderLock.signal()
+            return
+        }
+        self.microphoneReaderLock.signal()
+
         if clearPreviousRecording {
             self.audioRecordingLock.wait()
             self.audioRecording = .init()
@@ -169,7 +175,9 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
             self.startRecording()
         }
         
+        self.microphoneReaderLock.wait()
         self.microphoneReader.startRunning()
+        self.microphoneReaderLock.signal()
     }
     
     
@@ -178,9 +186,11 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     /// After invoking this method, the client can expect to receive an array containing all the recorded samples,
     /// if `shouldRecord` was set to `true` at the time of invokation of `startRunning(_:,_:)`.
     internal final func stopRunning() {
-        Task { @MainActor in
+        self.microphoneReaderLock.wait()
+        Task.synchronous { @MainActor in
             self.microphoneReader.stopRunning()
         }
+        self.microphoneReaderLock.signal()
             
         if self.isRecordingMicInput {
             self.stopRecording()
@@ -224,8 +234,10 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
         self.loggerLock.signal()
         #endif
         
+        self.microphoneReaderLock.wait()
         guard let nyquist = self.microphoneReader.getNyquistFrequency() else { return }
-
+        self.microphoneReaderLock.signal()
+        
         self.audioRecordingLock.wait()
         self.stopRunning()
         
