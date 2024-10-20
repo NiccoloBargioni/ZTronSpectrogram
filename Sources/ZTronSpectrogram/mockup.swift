@@ -8,7 +8,7 @@ public func makeMicrophoneMockup() {
     
     let subscription = microphoneInputReader
                             .samplesBatchPublisher
-                            .receive(on: RunLoop.main)
+                            .receive(on: DispatchQueue.main)
                             .filter {
                                 $0.count > 0
                             }
