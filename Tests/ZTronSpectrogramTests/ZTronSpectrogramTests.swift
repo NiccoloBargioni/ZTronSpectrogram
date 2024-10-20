@@ -1,6 +1,24 @@
 import Testing
+import Foundation
+import Combine
 @testable import ZTronSpectrogram
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+@MainActor @Test func testMicrophoneInput() async throws {
+    let microphoneInputReader = MicrophoneInputReader.getSharedInstance()
+    
+    let subscription = microphoneInputReader
+                            .samplesBatchPublisher
+                            .receive(on: RunLoop.main)
+                            .sink { _ in
+                                
+                            } receiveValue: { batch in
+                                #expect(batch.count == 1024)
+                            }
+    
+    microphoneInputReader.startRunning()
+    
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+        microphoneInputReader.stopRunning()
+        subscription.cancel()
+    }
 }

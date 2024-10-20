@@ -4,8 +4,8 @@ import Accelerate
 import Combine
 
 
-/// A singleton class that handles low-level interaction with the device's microphone. It provides access to the recorded samples through Combine framework, providing a certain number
-/// of samples at a time.
+/// A singleton class that handles low-level interaction with the device's microphone.
+/// It provides access to the recorded samples through Combine framework, providing a certain number of samples at a time.
 internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate, @unchecked Sendable {
     @MainActor private static var sharedInstance: MicrophoneInputReader?
     private let captureSession = AVCaptureSession()
@@ -217,5 +217,10 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
         self.convertedTimeSamplesLock.signal()
         
         self.samplesBatch.send(Array(convertedTimeSamples))
+    }
+    
+    deinit {
+        self.captureSession.stopRunning()
+        self.samplesBatch.send(completion: .finished)
     }
 }
