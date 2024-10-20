@@ -70,13 +70,11 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
     }
     
     
-    nonisolated internal final func stopRunning() {
+    @MainActor internal final func stopRunning() {
         if self.captureSession.isRunning {
             sessionQueue.async {
-                Task {
-                    await MainActor.run {
-                        MicrophoneInputReader.sharedInstance?.captureSession.stopRunning()
-                    }
+                Task { @MainActor in
+                    MicrophoneInputReader.sharedInstance?.captureSession.stopRunning()
                 }
             }
         }
