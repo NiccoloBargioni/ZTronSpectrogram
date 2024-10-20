@@ -53,7 +53,7 @@ public func makeChunkerMockup() {
                             print("Failed with error \(error.what)")
                     }
                 } receiveValue: { chunk in
-                    print("Chunk size: \(chunk)")
+                    print("Chunk size: \(chunk.count)")
                 }
     
     chunker.startRunning(shouldRecord: false)
