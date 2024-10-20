@@ -27,7 +27,7 @@ public func makeMicrophoneMockup() {
     
     microphoneInputReader.startRunning()
     
-    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { @MainActor in
         microphoneInputReader.stopRunning()
         subscription.cancel()
     }

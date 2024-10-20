@@ -86,7 +86,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
                         self._audioChunkPublisher.send(completion: .failure(error))
                     
                 }
-            }, receiveValue: { [weak self] micSamples in
+            }, receiveValue: { @MainActor [weak self] micSamples in
                 guard let self = self else { return }
                 
                 self.handleMicrophoneInput(values: micSamples)
