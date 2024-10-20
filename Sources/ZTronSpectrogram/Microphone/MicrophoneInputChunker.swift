@@ -103,14 +103,24 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
         self.loggerLock.signal()
         #endif
         
-        self.stopRunning()
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                self.stopRunning()
+            }
+        } else {
+        #if DEBUG
+            self.loggerLock.wait()
+            self.logger.critical("Could not stop running microphone capture because the object was deinitialised outside of the main thread.")
+            self.loggerLock.signal()
+        #endif
+        }
+        
         self._audioChunkPublisher.send(completion: .finished)
         self._audioRecordingPublisher.send(completion: .finished)
         
         self.subscriptions.forEach { $0.cancel() }
         self.audioRecording = []
         self.rawAudioData = []
-        
     }
     
     /// Receives the inputs from the microphone and converts it in chunks of the desired size, then publishes it.

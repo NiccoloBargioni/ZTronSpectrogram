@@ -19,7 +19,7 @@ let package = Package(
             name: "ZTronSpectrogram",
             swiftSettings: [
                 /// Xcode 15 & 16. Remove `=targeted` to use the default `complete`. Potentially isolate to a platform to further reduce scope.
-                .enableExperimentalFeature("StrictConcurrency=minimal")
+                .enableExperimentalFeature("StrictConcurrency=complete")
             ]
 
         ),
