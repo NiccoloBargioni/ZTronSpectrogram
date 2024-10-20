@@ -11,6 +11,10 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
     private let captureSession = AVCaptureSession()
     private let audioOutput = AVCaptureAudioDataOutput()
     
+    @MainActor internal var isRunning: Bool {
+        return self.captureSession.isRunning
+    }
+    
     private static let TARGET_OUTPUT_SAMPLES_PER_BATCH: Int = 1024
     
     private var convertedTimeSamples = [Float].init(repeating: 0, count: MicrophoneInputReader.TARGET_OUTPUT_SAMPLES_PER_BATCH)
@@ -27,7 +31,7 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
                                      autoreleaseFrequency: .workItem)
     
     private let samplesBatch: CurrentValueSubject<[Float], SpectrogramError> = .init([])
-    private let samplesBatchPublisher: AnyPublisher<[Float], SpectrogramError>
+    internal let samplesBatchPublisher: AnyPublisher<[Float], SpectrogramError>
     
     private let convertedTimeSamplesLock: DispatchSemaphore = .init(value: 1)
     private let nyquistFrequencyLock: DispatchSemaphore = .init(value: 1)
