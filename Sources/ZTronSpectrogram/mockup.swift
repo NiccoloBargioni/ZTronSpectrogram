@@ -9,6 +9,9 @@ public func makeMicrophoneMockup() {
     let subscription = microphoneInputReader
                             .samplesBatchPublisher
                             .receive(on: RunLoop.main)
+                            .filter {
+                                $0.count > 0
+                            }
                             .sink { completion in
                                 switch completion {
                                 case .finished:
