@@ -126,6 +126,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     
     /// Receives the inputs from the microphone and converts it in chunks of the desired size, then publishes it.
     @MainActor final func handleMicrophoneInput(values: [Float]) {
+        print(#function)
         audioRecordingLock.wait()
         if self.isRecordingMicInput {
             self.audioRecording.append(contentsOf: values)
@@ -158,6 +159,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     /// to the previous recording, if `shouldRecord == true`.
     @MainActor
     internal final func startRunning(shouldRecord: Bool, clearPreviousRecording: Bool = false) {
+        print(#function)
         self.microphoneReaderLock.wait()
         guard !self.microphoneReader.isRunning else {
             self.microphoneReaderLock.signal()
@@ -186,6 +188,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     /// After invoking this method, the client can expect to receive an array containing all the recorded samples,
     /// if `shouldRecord` was set to `true` at the time of invokation of `startRunning(_:,_:)`.
     internal final func stopRunning() {
+        print(#function)
         self.microphoneReaderLock.wait()
         Task.synchronous { @MainActor in
             self.microphoneReader.stopRunning()
@@ -199,6 +202,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     
     
     private final func startRecording() {
+        print(#function)
         guard !self.isRecordingMicInput else { return }
         
         self.audioRecordingLock.wait()
@@ -209,6 +213,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     
     
     private final func stopRecording() {
+        print(#function)
         guard self.isRecordingMicInput else { return }
         
         self.audioRecordingLock.wait()
@@ -273,6 +278,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     
     
     private final func isRecording() -> Bool {
+        print(#function)
         self.audioRecordingLock.wait()
 
         defer {
