@@ -65,8 +65,8 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
 
         self.microphoneReader
             .samplesBatchPublisher
-            .receive(on: self.microphoneInputQueue)
-            .sink(receiveCompletion: { [weak self] completion in
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { @MainActor [weak self] completion in
                 guard let self = self else { return }
                 
                 switch completion {
