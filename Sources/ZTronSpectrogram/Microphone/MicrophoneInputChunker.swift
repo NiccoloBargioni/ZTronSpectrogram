@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import os
 
 /// This class has the responsibility to collect the microphone input and collect it in chunks of fixed size, specified by the `chunkSize` constructor parameter.
 /// Each chunk loses the first `hopCount` samples with respect to the previous chunk, and gains `hopCount` new samples at the end.
@@ -9,7 +10,7 @@ import Combine
 ///
 /// A client that wishes to use this class should subscribe to the publisher of interest.
 internal final class MicrophoneInputChunker: @unchecked Sendable {
-    @MainActor private var microphoneReader: MicrophoneInputReader = MicrophoneInputReader.getSharedInstance()
+    @MainActor private let microphoneReader: MicrophoneInputReader = MicrophoneInputReader.getSharedInstance()
     private let clampToMinuteIfMemoryWarningReceived: Int
     
     private let chunkSize: Int
@@ -34,17 +35,22 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     private let _audioChunkPublisher: PassthroughSubject<[Float], SpectrogramError>
     private let audioChunkPublisher: AnyPublisher<[Float], SpectrogramError>
     
+    private let logger = os.Logger(subsystem: "Spectrogram", category: "MicrophoneInputChunker")
     
-    private var rawAudioDataLock = DispatchSemaphore(value: 1)
-    private var audioRecordingLock = DispatchSemaphore(value: 1)
+    private let rawAudioDataLock = DispatchSemaphore(value: 1)
+    private let audioRecordingLock = DispatchSemaphore(value: 1)
+    private let loggerLock = DispatchSemaphore(value: 1)
+    
 
-    
+    @MainActor
     private init(
         chunkSize: Int,
         hopCount: Int,
         clampToMinuteIfMemoryWarningReceived: Int = 1
     ) {
-        print("MicrophoneInputManager init")
+        #if DEBUG
+        logger.log(level: .debug, "✓ \(String(describing: Self.self)) init")
+        #endif
         
         self.chunkSize = chunkSize
         self.hopCount = hopCount
@@ -57,7 +63,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
         
         self.clampToMinuteIfMemoryWarningReceived = clampToMinuteIfMemoryWarningReceived
 
-        microphoneReader
+        self.microphoneReader
             .samplesBatchPublisher
             .receive(on: self.microphoneInputQueue)
             .sink(receiveCompletion: { [weak self] completion in
@@ -65,7 +71,16 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
                 
                 switch completion {
                     case .finished:
-                        print("Microphone stopped publishing input data")
+                        #if DEBUG
+                        self.loggerLock.wait()
+                        self.logger.log(level: .debug, "\(String(describing: MicrophoneInputReader.self)) sent session completion")
+                        self.loggerLock.signal()
+                        #endif
+                    
+                        self.stopRunning()
+                        
+                        self._audioChunkPublisher.send(completion: .finished)
+                        self._audioRecordingPublisher.send(completion: .finished)
                     
                     case .failure(let error):
                         self._audioChunkPublisher.send(completion: .failure(error))
@@ -82,8 +97,12 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     
     
     deinit {
-        print("deinit MicrophoneInputManager")
-                
+        #if DEBUG
+        self.loggerLock.wait()
+        self.logger.log(level: .debug, "✓ \(String(describing: Self.self)) deinitialising")
+        self.loggerLock.signal()
+        #endif
+        
         self.stopRunning()
         self._audioChunkPublisher.send(completion: .finished)
         self._audioRecordingPublisher.send(completion: .finished)
@@ -191,7 +210,11 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     /// This implementation also stops the audio capture, to save memory.
     @MainActor
     private final func handleMemoryWarningReceived() {
-        print("Did receive memory warning @ MicrophoneInputManager")
+        #if DEBUG
+        self.loggerLock.wait()
+        self.logger.log(level: .debug, "\(String(describing: Self.self)) received memory warning.")
+        self.loggerLock.signal()
+        #endif
         
         guard let nyquist = self.microphoneReader.getNyquistFrequency() else { return }
 
@@ -205,11 +228,21 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
         
         /* Handle case of memory warning received before minute limit to clamp to */
         if clampedValue < sampleToClampTo {
-            print("Memory warning received before clamp limit reaced")
+            #if DEBUG
+            self.loggerLock.wait()
+            self.logger.log(level: .debug, "\(String(describing: Self.self)): Memory warning received before clamp limit reaced")
+            self.loggerLock.signal()
+            #endif
+            
             self.audioRecording = Array(self.audioRecording[0..<self.audioRecording.count/2])
         } else {
         /* Handle case of memory warning received after minute limit to clamp to */
-            print("Memory warning received after clamp limit reaced")
+            #if DEBUG
+            self.loggerLock.wait()
+            self.logger.log(level: .debug, "\(String(describing: Self.self)): Memory warning received after clamp limit reached")
+            self.loggerLock.signal()
+            #endif
+            
             self.audioRecording = Array(self.audioRecording[0..<sampleToClampTo])
         }
         self.audioRecordingLock.signal()
