@@ -10,7 +10,6 @@ import Combine
 /// Operative tests on a microphone with Nyquist frequency of 22100 Hz usually produce 1024 samples at a time but the number of samples may
 /// have very small variations (usually by about four samples) but such occurrence is uncommon. Further tests may be required
 internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate, @unchecked Sendable {
-    @MainActor private static var sharedInstance: MicrophoneInputReader?
     private let captureSession = AVCaptureSession()
     private let audioOutput = AVCaptureAudioDataOutput()
     
@@ -37,7 +36,7 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
     private let convertedTimeSamplesLock: DispatchSemaphore = .init(value: 1)
     private let nyquistFrequencyLock: DispatchSemaphore = .init(value: 1)
     
-    override private init() {
+    override internal init() {
         self.samplesBatchPublisher = self.samplesBatch.eraseToAnyPublisher()
         super.init()
         self.audioOutput.setSampleBufferDelegate(self, queue: self.captureQueue)
@@ -45,23 +44,13 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
         audioOutput.setSampleBufferDelegate(self, queue: captureQueue)
     }
     
-    
-    @MainActor public static func getSharedInstance() -> MicrophoneInputReader {
-        if self.sharedInstance == nil {
-            self.sharedInstance = MicrophoneInputReader()
-        }
-        
-        return self.sharedInstance!
-    }
-    
-    
     nonisolated internal final func startRunning() {
         if !self.captureSession.isRunning {
             sessionQueue.async {
                 Task {
                     await MainActor.run {
                         if AVCaptureDevice.authorizationStatus(for: .audio) == .authorized {
-                            MicrophoneInputReader.sharedInstance?.captureSession.startRunning()
+                            self.captureSession.startRunning()
                         }
                     }
                 }
@@ -74,7 +63,7 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
         if self.captureSession.isRunning {
             sessionQueue.async {
                 Task { @MainActor in
-                    MicrophoneInputReader.sharedInstance?.captureSession.stopRunning()
+                    self.captureSession.stopRunning()
                 }
             }
         }

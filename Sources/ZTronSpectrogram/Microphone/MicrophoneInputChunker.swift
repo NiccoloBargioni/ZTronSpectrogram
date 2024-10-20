@@ -10,7 +10,7 @@ import os
 ///
 /// A client that wishes to use this class should subscribe to the publisher of interest.
 internal final class MicrophoneInputChunker: @unchecked Sendable {
-    @MainActor private let microphoneReader: MicrophoneInputReader = MicrophoneInputReader.getSharedInstance()
+    @MainActor private let microphoneReader: MicrophoneInputReader = MicrophoneInputReader()
     private let clampToMinuteIfMemoryWarningReceived: Int
     
     private let chunkSize: Int

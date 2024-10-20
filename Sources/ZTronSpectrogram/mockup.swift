@@ -4,7 +4,7 @@ import Combine
 #if DEBUG
 @MainActor
 public func makeMicrophoneMockup() {
-    let microphoneInputReader = MicrophoneInputReader.getSharedInstance()
+    let microphoneInputReader = MicrophoneInputReader()
     
     let subscription = microphoneInputReader
                             .samplesBatchPublisher
