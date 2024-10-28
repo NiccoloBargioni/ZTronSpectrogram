@@ -6,11 +6,11 @@ import os
 /// Each chunk loses the first `hopCount` samples with respect to the previous chunk, and gains `hopCount` new samples at the end.
 ///
 /// The samples are offered to the client as an array of real numbers, that can be accessed subscribing to the publisher exposed on the interface of this class.
-/// In this implementation, there are two publishers: one to publish audio chunks as they are captured, and one to send the recorded audio during the last session.
+/// In this implementation, there are two publishers: one to publish audio chunks as they are captured, and one to send the recorded audio during the last session.///
 ///
 /// A client that wishes to use this class should subscribe to the publisher of interest.
-internal final class MicrophoneInputChunker: @unchecked Sendable {
-    @MainActor private let microphoneReader: MicrophoneInputReader = MicrophoneInputReader()
+internal final class MicrophoneInputChunker: SignalChunker, @unchecked Sendable {
+    @MainActor lazy private var microphoneReader: MicrophoneInputReader = MicrophoneInputReader()
     private let clampToMinuteIfMemoryWarningReceived: Int
     
     private let chunkSize: Int
@@ -33,7 +33,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     internal let audioRecordingPublisher: AnyPublisher<[Float], Never>
         
     private let _audioChunkPublisher: PassthroughSubject<[Float], SpectrogramError>
-    internal let audioChunkPublisher: AnyPublisher<[Float], SpectrogramError>
+    internal let signalChunksPublisher: AnyPublisher<[Float], SpectrogramError>
     
     private let logger = os.Logger(subsystem: "Spectrogram", category: "MicrophoneInputChunker")
     
@@ -43,6 +43,22 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
     private let microphoneReaderLock = DispatchSemaphore(value: 1)
     
 
+    /// This class' main purpose is to chunk microphone input to perform FFT or DCT on it. When using this class with that purpose, keep in mind the following.
+    ///
+    /// - Parameter chunkSize: The size of the FFT window, expressed in samples. This implementation guarantees that subscribers
+    /// (via `signalChunksPublisher`) will receive chunks of signals of the specified size.
+    /// - Parameter hopCount: The number of samples between the beginning of one window and the beginning of the next.
+    ///
+    /// - `chunkSize` impacts the frequency and time resolution of the STFT, as in, larger values increase frequency resolution
+    /// (that is, the ability to distinguish between two distinct frequencies), but reduce the time resolution (that is, the ability to recognise short-lived events).
+    ///
+    /// - `hopCount` acts as a scale factor for the time axis. A smaller values of `hopCount` means a bigger overlap between two consecutive windows,
+    ///  that will result in a more time-stretched spectrogram. Any `hopCount` other than 1 will cause loss of perfect STFT invertibility, even though the ISTFT can still
+    ///  be estimated in the sense of Griffin-Lim. Small values of `hopCount` though, come at a cost of higher performance costs. A common practice is to pick
+    ///  `hopCount` to be 50% of `chunkSize`, as it's widely considered a good compromise between reducing the variability of the power spectral density estimate
+    ///  and the time resolution of the STFT.
+    ///
+    /// - In order for the STFT of the signal to be invertible in the sense of Griffin-Lim, ensure that `hopCount >= chunkSize` (refferred to as NOLA constraint).
     @MainActor
     internal init(
         chunkSize: Int,
@@ -60,7 +76,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
         self.audioRecordingPublisher = self._audioRecordingPublisher.eraseToAnyPublisher()
         
         self._audioChunkPublisher = PassthroughSubject()
-        self.audioChunkPublisher = self._audioChunkPublisher.eraseToAnyPublisher()
+        self.signalChunksPublisher = self._audioChunkPublisher.eraseToAnyPublisher()
         
         self.clampToMinuteIfMemoryWarningReceived = clampToMinuteIfMemoryWarningReceived
 
@@ -124,6 +140,7 @@ internal final class MicrophoneInputChunker: @unchecked Sendable {
         self.rawAudioData = []
     }
     
+    // TODO: Is mainActor actually necessary?
     /// Receives the inputs from the microphone and converts it in chunks of the desired size, then publishes it.
     @MainActor final func handleMicrophoneInput(values: [Float]) {
         audioRecordingLock.wait()

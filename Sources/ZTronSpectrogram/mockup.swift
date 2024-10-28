@@ -43,7 +43,7 @@ public func makeChunkerMockup() {
     )
     
     let chunksSubscription = chunker
-                .audioChunkPublisher
+                .signalChunksPublisher
                 .sink { completion in
                     switch completion {
                         case .finished:
