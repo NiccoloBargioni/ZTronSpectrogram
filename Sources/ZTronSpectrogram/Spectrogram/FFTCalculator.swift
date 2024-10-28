@@ -10,8 +10,8 @@ internal final class FFTCalculator: @unchecked Sendable {
     private let fft = FFT(windowSize: 1024)
     private static let logger: Logger = .init(subsystem: "Spectrogram", category: "FFT Calculator")
 
-    private let _frequencySnapshotProvider: PassthroughSubject<[Float], SpectrogramError> = .init()
-    internal let frequencySnapshotProvider: AnyPublisher<[Float], SpectrogramError>
+    private let _frequencySnapshotProvider: PassthroughSubject<DSPSplitComplex, SpectrogramError> = .init()
+    internal let frequencySnapshotProvider: AnyPublisher<DSPSplitComplex, SpectrogramError>
     
     private let frequencyLock = DispatchSemaphore(value: 1)
     
@@ -38,7 +38,6 @@ internal final class FFTCalculator: @unchecked Sendable {
     }
     
     
-    @MainActor
     private final func handleChunkReceived(_ theSamples: [Float]) {
         self.frequencyLock.wait()
         // Fake implementation
@@ -49,14 +48,12 @@ internal final class FFTCalculator: @unchecked Sendable {
         realP.withUnsafeMutableBufferPointer { realPtr in
             imagP.withUnsafeMutableBufferPointer { imagPtr in
                 let complexSignal = DSPSplitComplex(realp: realPtr.baseAddress!, imagp: imagPtr.baseAddress!)
-                let _ = fft.transform(samples: complexSignal)
+                let frequency = fft.transform(samples: complexSignal)
+                self._frequencySnapshotProvider.send(frequency)
+                print("Received frequency snapshot")
             }
         }
-
-
         
-        
-        self._frequencySnapshotProvider.send(frequency)
         self.frequencyLock.signal()
     }
     
