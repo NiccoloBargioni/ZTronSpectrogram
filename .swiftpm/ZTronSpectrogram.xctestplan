@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "8242179B-48DB-418E-975F-25D1B67EE90D",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "ZTronSpectrogramTests",
+        "name" : "ZTronSpectrogramTests"
+      }
+    }
+  ],
+  "version" : 2
+}

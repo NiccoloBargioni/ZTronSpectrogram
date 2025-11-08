@@ -1,6 +1,7 @@
 import Foundation
 import os
 import Accelerate
+import QuartzCore
 @preconcurrency import Combine
 
 
@@ -8,7 +9,7 @@ internal final class FFTCalculator: @unchecked Sendable {
     private let frequency: [Float] = .init()
     private var subscriptions: Set<AnyCancellable> = .init()
     private let fft = FFT(windowSize: 1024)
-    private static let logger: Logger = .init(subsystem: "Spectrogram", category: "FFT Calculator")
+    private static let logger: Logger = .init(subsystem: "com.zombietron.ztronspectrogram", category: "FFT Calculator")
 
     private let _frequencySnapshotProvider: PassthroughSubject<DSPSplitComplex, SpectrogramError> = .init()
     internal let frequencySnapshotProvider: AnyPublisher<DSPSplitComplex, SpectrogramError>
@@ -64,3 +65,5 @@ internal final class FFTCalculator: @unchecked Sendable {
     }
     
 }
+
+

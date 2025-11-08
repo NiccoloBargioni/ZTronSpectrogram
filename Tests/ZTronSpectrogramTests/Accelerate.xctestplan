@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "7E891BD7-6DBD-4FBD-87DE-79357182DADB",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "ZTronSpectrogramTests",
+        "name" : "ZTronSpectrogramTests"
+      }
+    }
+  ],
+  "version" : 1
+}

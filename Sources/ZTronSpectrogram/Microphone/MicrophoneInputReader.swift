@@ -9,11 +9,11 @@ import Combine
 ///
 /// Operative tests on a microphone with Nyquist frequency of 22100 Hz usually produce 1024 samples at a time but the number of samples may
 /// have very small variations (usually by about four samples) but such occurrence is uncommon. Further tests may be required
-internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate, @unchecked Sendable {
+internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate, SamplesProvider, @unchecked Sendable {
     private let captureSession = AVCaptureSession()
     private let audioOutput = AVCaptureAudioDataOutput()
     
-    @MainActor internal var isRunning: Bool {
+    internal var isRunning: Bool {
         return self.captureSession.isRunning
     }
     
@@ -59,7 +59,7 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
     }
     
     
-    @MainActor internal final func stopRunning() {
+    internal final func stopRunning() {
         if self.captureSession.isRunning {
             sessionQueue.async {
                 Task { @MainActor in
@@ -69,14 +69,18 @@ internal final class MicrophoneInputReader: NSObject, AVCaptureAudioDataOutputSa
         }
     }
     
-    internal final func getNyquistFrequency() -> Float? {
+    internal final func getNyquistFrequency() -> Float {
         self.nyquistFrequencyLock.wait()
         
         defer {
             self.nyquistFrequencyLock.signal()
         }
         
-        return self.nyquistFrequency
+        if let nyquistFrequency = self.nyquistFrequency {
+            return nyquistFrequency
+        } else {
+            return Float(AVAudioSession.sharedInstance().sampleRate) / 2.0
+        }
     }
     
     

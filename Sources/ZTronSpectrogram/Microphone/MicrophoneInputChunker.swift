@@ -10,7 +10,7 @@ import os
 ///
 /// A client that wishes to use this class should subscribe to the publisher of interest.
 internal final class MicrophoneInputChunker: SignalChunker, @unchecked Sendable {
-    @MainActor lazy private var microphoneReader: MicrophoneInputReader = MicrophoneInputReader()
+    @MainActor lazy private var microphoneReader: any SamplesProvider = MicrophoneInputReader()
     private let clampToMinuteIfMemoryWarningReceived: Int
     
     private let chunkSize: Int
@@ -35,7 +35,7 @@ internal final class MicrophoneInputChunker: SignalChunker, @unchecked Sendable 
     private let _audioChunkPublisher: PassthroughSubject<[Float], SpectrogramError>
     internal let signalChunksPublisher: AnyPublisher<[Float], SpectrogramError>
     
-    private let logger = os.Logger(subsystem: "Spectrogram", category: "MicrophoneInputChunker")
+    private let logger = os.Logger(subsystem: "com.zombietron.ztronspectrogram", category: "MicrophoneInputChunker")
     
     private let rawAudioDataLock = DispatchSemaphore(value: 1)
     private let audioRecordingLock = DispatchSemaphore(value: 1)
@@ -249,14 +249,10 @@ internal final class MicrophoneInputChunker: SignalChunker, @unchecked Sendable 
         self.loggerLock.signal()
         #endif
         
-        self.microphoneReaderLock.wait()
-        guard let nyquist = self.microphoneReader.getNyquistFrequency() else { return }
-        self.microphoneReaderLock.signal()
-        
         self.audioRecordingLock.wait()
         self.stopRunning()
         
-        let samplesPerSecond = 2*Int(nyquist)
+        let samplesPerSecond = 2*Int(self.microphoneReader.getNyquistFrequency())
         let sampleToClampTo = self.clampToMinuteIfMemoryWarningReceived*samplesPerSecond*60
 
         let clampedValue = (0..<self.audioRecording.count).clamp(sampleToClampTo)

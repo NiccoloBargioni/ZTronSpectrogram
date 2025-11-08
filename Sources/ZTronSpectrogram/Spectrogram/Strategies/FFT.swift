@@ -2,9 +2,8 @@ import Accelerate
 import os
 
 internal final class FFT: FFTStrategyDecorator, @unchecked Sendable {
-    
     private let windowSize: Int
-    private static let logger: Logger = .init(subsystem: "Spectrogram", category: "FFT")
+    private static let logger: Logger = .init(subsystem: "com.zombietron.ztronspectrogram", category: "FFT")
     
     
     private var fftRealBuffer: [Float]
@@ -59,12 +58,10 @@ internal final class FFT: FFTStrategyDecorator, @unchecked Sendable {
         let log2n = vDSP_Length(log2( Float( windowSize ) ))
 
         guard let fft = vDSP_create_fftsetup(log2n, 2) else {
-        #if DEBUG
             Self.loggerLock.wait()
             Self.logger.error("Unable to create FFT Setup")
             Self.loggerLock.signal()
-        #endif
-            
+                
             fatalError()
         }
         
@@ -72,7 +69,6 @@ internal final class FFT: FFTStrategyDecorator, @unchecked Sendable {
     }
     
     internal final func transform(samples: DSPSplitComplex) -> DSPSplitComplex {
-        
         var hammingWindow = [Float](repeating: 0, count: windowSize)
         vDSP_hamm_window(&hammingWindow, vDSP_Length(windowSize), 0)
 
@@ -104,7 +100,6 @@ internal final class FFT: FFTStrategyDecorator, @unchecked Sendable {
         //TODO: Perform the FFT
         
         var splitComplex: DSPSplitComplex!
-        
         self.samplesRealpCopyLock.wait()
         self.samplesImagpCopyLock.wait()
         self.samplesRealpCopy.withUnsafeMutableBufferPointer { realPtr in
