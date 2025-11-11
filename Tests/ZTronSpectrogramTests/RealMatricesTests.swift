@@ -6,6 +6,37 @@ import Accelerate
 @Suite("Matrices")
 struct TestRealMatrices {
     
+    @Test func arrayClone() async throws {
+        var someRandomArray: [Double] = .init()
+        
+        for _ in 0..<10_000 {
+            someRandomArray.append(Double.random(in: 0..<1))
+        }
+        
+        var clone = someRandomArray.vDSP_copy()
+        
+        someRandomArray.withUnsafeMutableBufferPointer { sraPtr in
+            clone.withUnsafeMutableBufferPointer { clonePtr in
+                #expect(sraPtr.baseAddress != clonePtr.baseAddress)
+            }
+        }
+        for i in 0..<10_000 {
+            #expect(someRandomArray[i] == clone[i])
+        }
+        
+    }
+    
+    @Test func testExtractColumn() async throws {
+        let matrix: DenseRealMatrix = .init(
+            wrapping: [4.0, 2.0, 1.0, 2.0, 5.0, 3.0, 1.0, 3.0, 6.0],
+            rows: 3,
+            columns: 3
+        )
+        
+        let secondCol = matrix.column(1)
+        print(secondCol.description)
+    }
+    
     @Test func testMatrixTransposition() async throws {
         let matrix: DenseRealMatrix = .init(
             wrapping: [4.0, 2.0, 1.0, 2.0, 5.0, 3.0],
@@ -40,7 +71,7 @@ struct TestRealMatrices {
             let mm = try firstMatrix * secondMatrix
             for i in 0..<3 {
                 for j in 0..<3 {
-                    print(mm[i][j])
+                    #expect(firstMatrix[i][j] == mm[i][j])
                 }
             }
         } catch let error as MatrixError {
@@ -104,6 +135,40 @@ struct TestRealMatrices {
         } catch {
             fatalError(error.localizedDescription)
         }
+    }
+    
+    
+    @Test func testEigenvaluesAndVectors() async throws {
+        let matrix = DenseRealMatrix(wrapping: [4.0, 2.0, 1.0, 2.0, 5.0, 3.0, 1.0, 3.0, 6.0], rows: 3, columns: 3)
         
+        do {
+            let householder = try matrix.tridiagonalDecomposition()
+            let T = householder.buildTridiagonalMatrix()
+            let eigenvectorDecomposition = try householder.getEigenvectorDecompositon()
+            let eigenvectors = eigenvectorDecomposition.getEigenvectors()
+            
+            
+            for i in 0..<3 {
+                let eigenVector = eigenvectors[i]
+                let expectedOutput = try T * DenseRealMatrix(wrapping: eigenVector, rows: 1, columns: 3).transposed()
+                                
+                var estimatedLambda: [Double] = []
+                for j in 0..<3 {
+                    estimatedLambda.append(expectedOutput[j][0] / eigenVector[j])
+                }
+                
+                for j in 0..<2 {
+                    #expect(abs(estimatedLambda[j] - estimatedLambda[j + 1]) < 10e-15)
+                }
+                
+            }
+            
+        } catch let error as MatrixError {
+            if case MatrixError.invalidDimension(let errorMessage) = error {
+                print(errorMessage)
+            }
+        } catch {
+            fatalError(error.localizedDescription)
+        }
     }
 }

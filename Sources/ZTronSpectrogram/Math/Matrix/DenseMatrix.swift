@@ -71,7 +71,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
             rowsOfDecomposedMatrix: self.rows
         )
     }
-    
+
     
     public final func transposed() -> DenseRealMatrix {
         let result = UnsafeMutableBufferPointer<Double>.allocate(capacity: self.rows * self.columns)
@@ -127,6 +127,28 @@ public final class DenseRealMatrix: CustomStringConvertible {
     
     subscript(index: Int) -> [Double] {
         return Array(self.matrix[ index*self.columns...(index + 1)*self.columns - 1])
+    }
+    
+    
+    public final func column(_ column: Int) -> DenseRealMatrix {
+        let ownRowsCount: vDSP_Length = .init(self.rows)
+        
+        let requestedColumn = Array<Double>.init(unsafeUninitializedCapacity: self.rows) { buffer, initializedCount in
+            self.matrix.withUnsafeMutableBufferPointer { matrixPtr in
+                vDSP_mmovD(
+                    matrixPtr.baseAddress! + self.columns * column,
+                    buffer.baseAddress!,
+                    ownRowsCount,
+                    1,
+                    ownRowsCount,
+                    ownRowsCount
+                )
+            }
+            
+            initializedCount = self.rows
+        }
+        
+        return DenseRealMatrix(wrapping: requestedColumn, rows: self.rows, columns: 1)
     }
     
     private final func toString() -> String {
