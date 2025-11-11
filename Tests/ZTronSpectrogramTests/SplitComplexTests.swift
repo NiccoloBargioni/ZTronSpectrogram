@@ -2,7 +2,6 @@ import Testing
 import Foundation
 import Accelerate
 
-import Combine
 @testable import ZTronSpectrogram
 
 @Suite("Split Complex")
@@ -60,7 +59,95 @@ struct TestSplitComplex {
     }
     
     
+    @Test func testProductByScalarRHS() async throws {
+        let cpx1 = self.makeRandomComplex()
+        let randomScalar = Float.random(in: 0..<1)
+        
+        let scaled = cpx1 * randomScalar
+        
+        #expect(scaled.real == cpx1.real * randomScalar)
+        #expect(scaled.imag == cpx1.imag * randomScalar)
+    }
     
+    @Test func testProductByScalarLHS() async throws {
+        let cpx1 = self.makeRandomComplex()
+        let randomScalar = Float.random(in: 0..<1)
+        
+        let scaled = randomScalar * cpx1
+        
+        #expect(scaled.real == cpx1.real * randomScalar)
+        #expect(scaled.imag == cpx1.imag * randomScalar)
+    }
+    
+    @Test func testProductByScalarInPlace() async throws {
+        var cpx1 = self.makeRandomComplex()
+        let randomScalar = Float.random(in: 0..<1)
+        
+        let cpx1Copy = DSPComplex(real: cpx1.real, imag: cpx1.imag)
+        cpx1 *= randomScalar
+        
+        #expect(cpx1.real == cpx1Copy.real * randomScalar)
+        #expect(cpx1.imag == cpx1Copy.imag * randomScalar)
+    }
+    
+    @Test func testComplexDivision() async throws {
+        let cpx1 = self.makeRandomComplex()
+        let cpx2 = self.makeRandomComplex()
+        
+        let cpx2Norm2 = cpx2.magnitude * cpx2.magnitude
+        
+        let div = cpx1 / cpx2
+        #expect(abs(div.real - (cpx1.real * cpx2.real + cpx1.imag * cpx2.imag) / cpx2Norm2) < 10e-6)
+        #expect(abs(div.imag - (-1*cpx1.real * cpx2.imag + cpx1.imag * cpx2.real) / cpx2Norm2) < 10e-6)
+    }
+    
+    
+    @Test func testComplexDivisionByLHSScalar() async throws {
+        let cpx2 = self.makeRandomComplex()
+        
+        let cpx2Norm2 = cpx2.magnitude * cpx2.magnitude
+        let randomFloat = Float.random(in: 0..<1)
+        
+        let div = randomFloat / cpx2
+        #expect(abs(div.real - randomFloat * cpx2.real / cpx2Norm2) < 10e-6)
+        #expect(abs(div.imag + (randomFloat * cpx2.imag) / cpx2Norm2) < 10e-6)
+    }
+    
+    
+    @Test func testComplexDivisionByRHSScalar() async throws {
+        let cpx2 = self.makeRandomComplex()
+        
+        let randomFloat = Float.random(in: 0..<1)
+        
+        let div = cpx2 / randomFloat
+        
+        #expect(abs(div.real - cpx2.real / randomFloat) < 10e-6)
+        #expect(abs(div.imag - cpx2.imag / randomFloat) < 10e-6)
+    }
+    
+    
+    @Test func testComplexDivisionInPlace() async throws {
+        var cpx1 = self.makeRandomComplex()
+        let cpx2 = self.makeRandomComplex()
+        
+        let cpx2Norm2 = cpx2.magnitude * cpx2.magnitude
+        let cpx1Copy = DSPComplex(real: cpx1.real, imag: cpx1.imag)
+        
+        cpx1 /= cpx2
+        
+        #expect(abs(cpx1.real - (cpx1Copy.real * cpx2.real + cpx1Copy.imag * cpx2.imag) / cpx2Norm2) < 10e-6)
+        #expect(abs(cpx1.imag - (-1*cpx1Copy.real * cpx2.imag + cpx1Copy.imag * cpx2.real) / cpx2Norm2) < 10e-6)
+    }
+    
+    @Test func testDSPComplexZero() async throws {
+        let complexZero: DSPComplex = DSPComplex(0)
+        #expect(complexZero.real == .zero)
+        #expect(complexZero.imag == .zero)
+        
+        let cpx0: DSPComplex = .zero
+        #expect(cpx0.real == .zero)
+        #expect(cpx0.imag == .zero)
+    }
     
     private func makeRandomComplex() -> DSPComplex {
         var randomRange: Range<Float>
@@ -76,4 +163,5 @@ struct TestSplitComplex {
 
         return DSPComplex(real: a, imag: b)
     }
+    
 }
