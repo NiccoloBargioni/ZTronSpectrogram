@@ -16,6 +16,8 @@ public final class DenseRealMatrix: CustomStringConvertible {
     }
     
     
+    /// This method performs the Householder decomposition of this matrix, that is, it produces an orthogonal matrix `Q` and a tridiagonal matrix `T` such that
+    /// this matrix can be rewritten as the following product: `self = Q·T·Q^t`
     func tridiagonalDecomposition() throws -> HouseholderDecomposition {
         guard self.rows == self.columns else {
             throw MatrixError.invalidDimension("Tridiagonal Householder Decomposition is only defined for square matrices.")
@@ -46,7 +48,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
                 &workspace, &workspaceSize, &statusInfo)
         
         guard statusInfo == 0 else {
-            fatalError("dsytrd failed with info = \(statusInfo)")
+            throw MatrixError.lapackError("dsytrd failed with exit code \(statusInfo)")
         }
         
         workspaceSize = -1
@@ -60,7 +62,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
                 &householderScalars, &workspace, &workspaceSize, &statusInfo)
         
         guard statusInfo == 0 else {
-            fatalError("dorgtr failed with info = \(statusInfo)")
+            throw MatrixError.lapackError("dsytrd failed with exit code \(statusInfo)")
         }
         
         return HouseholderDecomposition(
@@ -72,6 +74,114 @@ public final class DenseRealMatrix: CustomStringConvertible {
         )
     }
 
+    /// Reduces this matrix to Hessenberg form, that is, it produces as an output a decomposition such that `self = P·H·P^t` where `P` is a unitary matrix, that is, `P·P^t = P^t·P = Id`, and `H` is an Hessenberg matrix, that is, it has all zeros below the first subdiagonal.
+    public final func hessenbergReduction() throws -> HessenbergDecomposition {
+        guard self.rows == self.columns else {
+            throw MatrixError.invalidDimension("Hessenberg reduction is only defined for square matrices.")
+        }
+        
+        let columnMajorCopyOfSelf = self.transposed()
+        
+        var oneBasedStartingIndex: Int32 = Int32(1)
+        var oneBasedEndIndex: Int32 = Int32(self.rows)
+        var tau = [Double](repeating: 0.0, count: self.rows - 1)
+        var workQuery: Double = 0.0
+        var lwork = Int32(-1)
+        var exitCode: Int32 = 0
+        
+        var size: Int32 = Int32(self.rows)
+        var _size: Int32 = Int32(self.rows)
+        
+        dgehrd_(
+            &size,
+            &oneBasedStartingIndex,
+            &oneBasedEndIndex,
+            &columnMajorCopyOfSelf.matrix,
+            &_size,
+            &tau,
+            &workQuery,
+            &lwork,
+            &exitCode
+        )
+        
+        if exitCode != 0 {
+            throw MatrixError.lapackError("LAPACK dgehrd workspace query failed with exit code: \(exitCode)")
+        }
+        
+        lwork = Int32(workQuery)
+        var work = [Double](repeating: 0.0, count: Int(lwork))
+        
+        dgehrd_(
+            &size,
+            &oneBasedStartingIndex,
+            &oneBasedEndIndex,
+            &columnMajorCopyOfSelf.matrix,
+            &_size,
+            &tau,
+            &work,
+            &lwork,
+            &exitCode
+        )
+        
+        if exitCode != 0 {
+            throw MatrixError.lapackError("LAPACK dgehrd_ workspace query failed with exit code: \(exitCode)")
+        }
+
+        var hessenberg = columnMajorCopyOfSelf.getDefensiveCopyOfMatrix()
+        
+        for col in 0..<self.rows {
+            if self.rows > col + 2 {
+                for row in (col + 2)..<self.rows {
+                    hessenberg[col * self.rows + row] = 0.0
+                }
+            }
+        }
+        
+        var orthogonal = columnMajorCopyOfSelf.getDefensiveCopyOfMatrix()
+        
+        lwork = -1
+        dorghr_(
+            &size,
+            &oneBasedStartingIndex,
+            &oneBasedEndIndex,
+            &orthogonal,
+            &_size,
+            &tau,
+            &workQuery,
+            &lwork,
+            &exitCode
+        )
+        
+        if exitCode != 0 {
+            throw MatrixError.lapackError("LAPACK dorghr workspace query failed with exit code: \(exitCode)")
+        }
+
+        lwork = Int32(workQuery)
+        work = [Double](repeating: 0.0, count: Int(lwork))
+        
+        dorghr_(
+            &size,
+            &oneBasedStartingIndex,
+            &oneBasedEndIndex,
+            &orthogonal,
+            &_size,
+            &tau,
+            &work,
+            &lwork,
+            &exitCode
+        )
+        
+        if exitCode != 0 {
+            throw MatrixError.lapackError("LAPACK dorghr_ workspace query failed with exit code: \(exitCode)")
+        }
+
+        return HessenbergDecomposition(
+            hessenbergMatrix: hessenberg,
+            reducerMatrix: orthogonal,
+            size: self.rows
+        )
+    }
+    
     
     public final func transposed() -> DenseRealMatrix {
         let result = UnsafeMutableBufferPointer<Double>.allocate(capacity: self.rows * self.columns)
@@ -93,7 +203,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
     
     public static func * (lhs: DenseRealMatrix, rhs: DenseRealMatrix) throws -> DenseRealMatrix {
         guard lhs.columns == rhs.rows else {
-            throw MatrixError.invalidDimension("In matrix multiplication ")
+            throw MatrixError.invalidDimension("In matrix multiplication expected number of rows of left hand side (\(lhs.rows)) to match the number of columns of right hand side (\(rhs.columns)).")
         }
 
         let result = UnsafeMutableBufferPointer<Double>.allocate(capacity: lhs.rows * rhs.columns)
@@ -175,5 +285,13 @@ public final class DenseRealMatrix: CustomStringConvertible {
         stringRepresentation += "]"
         
         return stringRepresentation
+    }
+    
+    
+    /// Returns a defensive copy of the matrix
+    ///
+    /// - Complexity: `O(rows * cols)` both in time and memory
+    public final func getDefensiveCopyOfMatrix() -> [Double] {
+        return self.matrix.vDSP_copy()
     }
 }

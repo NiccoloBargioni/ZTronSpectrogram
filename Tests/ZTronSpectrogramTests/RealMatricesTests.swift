@@ -171,4 +171,61 @@ struct TestRealMatrices {
             fatalError(error.localizedDescription)
         }
     }
+    
+    @Test func testHessenbergDecomposition() async throws {
+        let size = 10
+        var someRandomMatrix = Array<Double>.init()
+        someRandomMatrix.reserveCapacity(size * size)
+        
+        for _ in 0..<size {
+            for _ in 0..<size {
+                someRandomMatrix.append(Double.random(in: 0..<1))
+            }
+        }
+        let matrix = DenseRealMatrix(wrapping: someRandomMatrix, rows: size, columns: size)
+
+
+        do {
+            let hessenberg = try matrix.hessenbergReduction()
+            let hessenbergMatrix = hessenberg.getHessenbergMatrix()
+            
+            for i in 0..<size {
+                for j in 0..<size {
+                    if j >= i - 1 {
+                        break
+                    } else {
+                        #expect(abs(hessenbergMatrix[i][j]) < 10e-15)
+                    }
+                }
+            }
+            
+            let reducer = hessenberg.getReducerMatrix()
+            
+            let A = try reducer * hessenbergMatrix * reducer.transposed()
+                        
+            for i in 0..<size {
+                for j in 0..<size {
+                    #expect(abs(A[i][j] - matrix[i][j]) < 10e-14)
+                }
+            }
+            
+            let I = try reducer * reducer.transposed()
+            
+            for i in 0..<size {
+                for j in 0..<size {
+                    if i != j {
+                        #expect(abs(I[i][j]) < 10e-15)
+                    } else {
+                        #expect(abs(I[i][j] - 1.0) < 10e-15)
+                    }
+                }
+            }
+        } catch let error as MatrixError {
+            if case MatrixError.invalidDimension(let errorMessage) = error {
+                print(errorMessage)
+            }
+        } catch {
+            fatalError(error.localizedDescription)
+        }
+    }
 }
