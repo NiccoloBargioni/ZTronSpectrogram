@@ -1,6 +1,6 @@
 import Accelerate
 
-public final class DenseComplexMatrix: CustomStringConvertible {
+public final class DenseComplexMatrix {
     public var description: String {
         return self.toString()
     }

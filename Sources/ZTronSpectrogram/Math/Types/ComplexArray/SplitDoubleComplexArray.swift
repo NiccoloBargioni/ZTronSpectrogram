@@ -1,6 +1,10 @@
 import Accelerate
 
-public final class SplitDoubleComplexArray {
+public final class SplitDoubleComplexArray: CustomStringConvertible {
+    public var description: String {
+        return self.toString()
+    }
+    
     private var array: DSPDoubleSplitComplex
     private let size: Int
     
@@ -72,5 +76,21 @@ public final class SplitDoubleComplexArray {
         )
         
         return SplitDoubleComplexArray(array: destComplex, size: outputSamplesCount)
+    }
+    
+    private final func toString() -> String {
+        var description = "[ "
+        
+        for i in 0..<self.size {
+            description += self[i].description
+            
+            if i < self.size - 1 {
+                description += ", "
+            } else {
+                description += " ]"
+            }
+        }
+        
+        return description
     }
 }

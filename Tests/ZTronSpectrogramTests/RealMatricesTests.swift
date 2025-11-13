@@ -330,4 +330,51 @@ struct TestRealMatrices {
             fatalError(error.localizedDescription)
         }
     }
+    
+    
+    @Test func eigenOfNonSymmetricMatrix() async throws {
+        do {
+            let A = DenseRealMatrix(
+                wrapping: [1.0, 1.0, 0.0, 0.0, 2.0, 1.0, -1.0, 0.0, 0.0, 3.0, 2.0, 1.0, 0.0, 0.0, 1.0, 3.0],
+                rows: 4,
+                columns: 4
+            )
+            
+            let hessenberg = try A.hessenbergReduction()
+            let eigens = try hessenberg.getEigenvectorDecomposition()
+            
+            for i in 0..<4 {
+                let ithEigenvector = eigens.getEigenvectors().column(i)
+                
+                let ithEigenvalue = eigens.getEigenvalues()[i]
+                var ithReconstructedEigenvector: [DSPDoubleComplex] = .init(repeating: .zero, count: 4)
+                
+                for row in 0..<4 {
+                    var sum = DSPDoubleComplex.zero
+                    for col in 0..<4 {
+                        let a = DSPDoubleComplex(real: A[row][col], imag: 0)
+                        let b = ithEigenvector[col][0]
+                        sum = sum + (a * b)
+                    }
+                    ithReconstructedEigenvector[row] = sum
+                }
+                                
+                var lambdaTimesV: [DSPDoubleComplex] = .init(repeating: .zero, count: 4)
+                for row in 0..<4 {
+                    lambdaTimesV[row] = ithEigenvalue * ithEigenvector[row][0]
+                }
+                
+                for row in 0..<4 {
+                    let difference = ithReconstructedEigenvector[row] - lambdaTimesV[row]
+                    #expect(abs(difference.real) < 10e-15)
+                    #expect(abs(difference.imag) < 10e-15)
+                }
+            }        } catch let error as MatrixError {
+            if case MatrixError.invalidDimension(let errorMessage) = error {
+                print(errorMessage)
+            }
+        } catch {
+            fatalError(error.localizedDescription)
+        }
+    }
 }

@@ -1,6 +1,6 @@
 import Accelerate
 
-public final class DenseRealMatrix: CustomStringConvertible {
+public final class DenseRealMatrix {
     public var description: String {
         return self.toString()
     }
@@ -80,7 +80,18 @@ public final class DenseRealMatrix: CustomStringConvertible {
             throw MatrixError.invalidDimension("Hessenberg reduction is only defined for square matrices.")
         }
         
-        let columnMajorCopyOfSelf = self.transposed()
+        // Convert row-major to column-major (NOT transpose!)
+        var columnMajorMatrix = [Double](repeating: 0.0, count: self.rows * self.columns)
+        var rowMajorMatrix = self.matrix
+        
+        vDSP_mtransD(
+            &rowMajorMatrix,
+            1,
+            &columnMajorMatrix,
+            1,
+            vDSP_Length(self.rows),
+            vDSP_Length(self.columns)
+        )
         
         var oneBasedStartingIndex: Int32 = Int32(1)
         var oneBasedEndIndex: Int32 = Int32(self.rows)
@@ -96,7 +107,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
             &size,
             &oneBasedStartingIndex,
             &oneBasedEndIndex,
-            &columnMajorCopyOfSelf.matrix,
+            &columnMajorMatrix,  // Now this is A in column-major, not A^T
             &_size,
             &tau,
             &workQuery,
@@ -115,7 +126,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
             &size,
             &oneBasedStartingIndex,
             &oneBasedEndIndex,
-            &columnMajorCopyOfSelf.matrix,
+            &columnMajorMatrix,
             &_size,
             &tau,
             &work,
@@ -124,10 +135,10 @@ public final class DenseRealMatrix: CustomStringConvertible {
         )
         
         if exitCode != 0 {
-            throw MatrixError.lapackError("LAPACK dgehrd_ workspace query failed with exit code: \(exitCode)")
+            throw MatrixError.lapackError("LAPACK dgehrd_ failed with exit code: \(exitCode)")
         }
 
-        var hessenberg = columnMajorCopyOfSelf.getDefensiveCopyOfMatrix()
+        var hessenberg = columnMajorMatrix
         
         for col in 0..<self.rows {
             if self.rows > col + 2 {
@@ -137,7 +148,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
             }
         }
         
-        var orthogonal = columnMajorCopyOfSelf.getDefensiveCopyOfMatrix()
+        var orthogonal = columnMajorMatrix
         
         lwork = -1
         dorghr_(
@@ -172,7 +183,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
         )
         
         if exitCode != 0 {
-            throw MatrixError.lapackError("LAPACK dorghr_ workspace query failed with exit code: \(exitCode)")
+            throw MatrixError.lapackError("LAPACK dorghr_ failed with exit code: \(exitCode)")
         }
 
         return HessenbergDecomposition(
@@ -182,6 +193,7 @@ public final class DenseRealMatrix: CustomStringConvertible {
             layout: .columnMajor
         )
     }
+
     
     
     public final func transposed() -> DenseRealMatrix {

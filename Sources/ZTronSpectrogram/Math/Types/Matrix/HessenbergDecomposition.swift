@@ -132,4 +132,145 @@ public final class HessenbergDecomposition {
             columns: count
         )
     }
+    
+    
+    /// It computes the eigenvectors of the matrix `A = P·H·P^t`, storing them in a complex dense matrix in row-major order,
+    /// meaning that the eigenvectors are stored as columns of such matrix.
+    public final func getEigenvectorDecomposition() throws -> EigenvectorDecompositionComplex {
+        let size = self.hessenbergMatrix.getRows()
+        
+        
+        var startingIndex = Int32(1)
+        var endIndex = Int32(size)
+        
+        let eigenvaluesReal = UnsafeMutablePointer<Double>.allocate(capacity: size)
+        let eigenvaluesImag = UnsafeMutablePointer<Double>.allocate(capacity: size)
+
+        /// If COMPZ = 'I', on entry Z need not be set and on exit,
+        /// if INFO = 0, Z contains the orthogonal matrix Z of the Schur
+        /// vectors of H.
+        var matrixOfSchurVectors = [Double](repeating: 0.0, count: size * size)
+        
+        var leadingDimensionOfSchurMatrix = Int32(size)
+        var job: Int8 = 83  // S
+        var compz: Int8 = 73 // I
+        
+        for i in 0..<size {
+            matrixOfSchurVectors[i * size + i] = 1.0
+        }
+        
+        var workQuery: Double = 0.0
+        var lwork = Int32(-1)
+        var exitCode: Int32 = 0
+        var orderOfHessenbergMatrix = __CLPK_integer(size)
+        var leadingDimensionOfHessenberg = __CLPK_integer(size)
+        
+        var hessenberg = self.hessenbergMatrix.getDefensiveCopyOfMatrix()
+        
+        /// It is assumed that H is already upper triangular in rows
+        /// and columns 1:ILO-1 and IHI+1:N. ILO and IHI are normally
+        /// set by a previous call to DGEBAL, and then passed to ZGEHRD
+        /// when the matrix output by DGEBAL is reduced to Hessenberg
+        /// form. Otherwise ILO and IHI should be set to 1 and N
+        /// respectively.  If N > 0, then 1 <= ILO <= IHI <= N.
+        /// If N = 0, then ILO = 1 and IHI = 0.
+        dhseqr_(
+            &job,
+            &compz,
+            &orderOfHessenbergMatrix,
+            &startingIndex,
+            &endIndex,
+            &hessenberg,
+            &leadingDimensionOfHessenberg,
+            eigenvaluesReal,
+            eigenvaluesImag,
+            &matrixOfSchurVectors,
+            &leadingDimensionOfSchurMatrix,
+            &workQuery,
+            &lwork,
+            &exitCode
+        )
+
+        if exitCode != 0 {
+            if exitCode > 0 {
+                throw MatrixError.lapackError("dhseqr_ failed to compute the \(exitCode)th eigenvector.")
+            } else {
+                throw MatrixError.lapackError("The \(-exitCode)th parameter to dhseqr_ was illegal.")
+            }
+        }
+
+        lwork = Int32(workQuery)
+        var work = [Double](repeating: 0.0, count: Int(lwork))
+        
+
+        hessenberg = self.hessenbergMatrix.getDefensiveCopyOfMatrix()
+        matrixOfSchurVectors = [Double](repeating: 0.0, count: size * size)
+        for i in 0..<size {
+            matrixOfSchurVectors[i * size + i] = 1.0
+        }
+
+        
+        dhseqr_(
+            &job,
+            &compz,
+            &orderOfHessenbergMatrix,
+            &startingIndex,
+            &endIndex,
+            &hessenberg,
+            &leadingDimensionOfHessenberg,
+            eigenvaluesReal,
+            eigenvaluesImag,
+            &matrixOfSchurVectors,
+            &leadingDimensionOfSchurMatrix,
+            &work,
+            &lwork,
+            &exitCode
+        )
+
+        if exitCode != 0 {
+            if exitCode > 0 {
+                throw MatrixError.lapackError("dhseqr_ failed to compute the \(exitCode)th eigenvector.")
+            } else {
+                throw MatrixError.lapackError("The \(-exitCode)th parameter to dhseqr_ was illegal.")
+            }
+        }
+
+        let eigenvalues = SplitDoubleComplexArray(
+            array: DSPDoubleSplitComplex(realp: eigenvaluesReal, imagp: eigenvaluesImag),
+            size: size
+        )
+        
+        let hessenbergReducer = self.reducerMatrix.getDefensiveCopyOfMatrix()
+        
+        var VMatrixOfSchur = [Double](repeating: 0.0, count: size * size)
+        cblas_dgemm(
+            CblasColMajor,
+            CblasNoTrans,
+            CblasNoTrans,
+            Int32(size),
+            Int32(size),
+            Int32(size),
+            1.0,
+            hessenbergReducer,
+            Int32(size),
+            matrixOfSchurVectors,
+            Int32(size),
+            0.0,
+            &VMatrixOfSchur,
+            Int32(size)
+        )
+
+        
+        let eigenvectors = try Self.computeEigenvectorsFromSchur(
+            schurCanonicalForm: &hessenberg,
+            schurVectors: &VMatrixOfSchur,
+            eigenvalues: eigenvalues
+        )
+        
+        return EigenvectorDecompositionComplex(
+            matrixOfEigeinvectors: eigenvectors,
+            eigenvalues: eigenvalues,
+            layout: .rowMajor
+        )
+    }
 }
