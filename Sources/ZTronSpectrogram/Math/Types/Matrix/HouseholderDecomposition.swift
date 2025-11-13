@@ -87,7 +87,7 @@ public final class HouseholderDecomposition {
     }
     
     /// This method computes a matrix entirely composed of eigenvectors for T such that `A = Q·T·Q^t`, where `T` is a tridiagonal matrix, as well as it computes the matching eigenvalues.
-    public final func getEigenvectorDecompositon() throws -> EigenvectorDecomposition {
+    public final func getEigenvectorDecompositon() throws -> EigenvectorDecomposition<Double> {
         var eigenvectorMatrix = Array<Double>.init(repeating: 0.0, count: self.size * self.size)
         
         for i in 0..<diagonal.count {
@@ -122,7 +122,8 @@ public final class HouseholderDecomposition {
         return EigenvectorDecomposition(
             matrixOfEigeinvectors: eigenvectorMatrix,
             eigenvalues: diagonalElements,
-            rowsAndColumnsCount: self.size
+            rowsAndColumnsCount: self.size,
+            layout: .columnMajor
         )
     }
 }

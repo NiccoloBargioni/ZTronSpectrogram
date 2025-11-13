@@ -178,7 +178,8 @@ public final class DenseRealMatrix: CustomStringConvertible {
         return HessenbergDecomposition(
             hessenbergMatrix: hessenberg,
             reducerMatrix: orthogonal,
-            size: self.rows
+            size: self.rows,
+            layout: .columnMajor
         )
     }
     
@@ -293,5 +294,13 @@ public final class DenseRealMatrix: CustomStringConvertible {
     /// - Complexity: `O(rows * cols)` both in time and memory
     public final func getDefensiveCopyOfMatrix() -> [Double] {
         return self.matrix.vDSP_copy()
+    }
+    
+    public final func getRows() -> Int {
+        return self.rows
+    }
+    
+    public final func getColumns() -> Int {
+        return self.columns
     }
 }
